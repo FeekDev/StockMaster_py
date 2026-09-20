@@ -20,5 +20,12 @@ class Articulo:
         self.stock = stock
         self.descripcion = descripcion
 
+    def descontarStock(self, cantidad):
+        """Descuenta stock del artículo cuando se realiza una venta"""
+        if self.stock >= cantidad:
+            self.stock -= cantidad
+            return True
+        return False
+
     def __str__(self):
         return f"[{self.codigo}] {self.nombre} | Precio: ${self.precio} | Stock: {self.stock} | Desc: {self.descripcion}"

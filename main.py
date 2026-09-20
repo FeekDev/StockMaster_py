@@ -1,6 +1,164 @@
 import re
 from modelos.persona import Usuario
 from modelos.articulo import Articulo
+from modelos.venta import Venta
+
+def menu_general():
+    print("\n=== MENÚ GENERAL ===") 
+    print("1. Ingresar al inventario")
+    print("2. Realizar venta")
+    print("4. Salir del sistema")
+
+    inventario = []  # Inventario compartido entre menús
+    
+    while True:
+        opcion = input("Selecciona una opción: ")
+        
+        if opcion == "1":
+            print("Ingresando al inventario...")
+            menu_inventario(inventario)
+        elif opcion == "2":
+            print("Ingresando a la sección de ventas...")
+            menu_ventas(inventario)
+        elif opcion == "4":
+            print("Saliendo del sistema...")
+            break
+        else:
+            print("Opción no válida. Por favor, intente nuevamente.")
+
+def menu_ventas(inventario):
+    ventas = []
+
+    while True:
+        print("\n=== MENÚ DE VENTA ===")
+        print("1. Ingresar nueva venta")
+        print("2. Calcular total de la venta")
+        print("3. Modificar venta")
+        print("4. Eliminar venta")
+        print("5. Volver al menú principal")
+        opcion = input("Selecciona una opción: ")
+        
+        if opcion == "1":
+            print("Realizar venta.")
+            if not inventario:
+                print("No hay productos en el inventario. Debe agregar productos primero.")
+                continue
+            
+            print("\n--- PRODUCTOS DISPONIBLES ---")
+            for art in inventario:
+                print(art)
+            
+            codigo = input("\nIngrese el código del producto a vender: ")
+            articulo_venta = None
+            for art in inventario:
+                if art.codigo == codigo:
+                    articulo_venta = art
+                    break
+            
+            if not articulo_venta:
+                print("Producto no encontrado.")
+                continue
+            
+            if articulo_venta.stock <= 0:
+                print(f"Error: El producto '{articulo_venta.nombre}' no tiene stock disponible.")
+                continue
+            
+            cantidad = int(input(f"Ingrese la cantidad a vender (Stock disponible: {articulo_venta.stock}): "))
+            
+            if cantidad <= 0:
+                print("Error: Cantidad inválida.")
+                continue
+            
+            if not articulo_venta.descontarStock(cantidad):
+                print(f"Error: No hay suficiente stock. Stock disponible: {articulo_venta.stock}")
+                continue
+            
+            descuento = float(input("Ingrese el descuento aplicado (en porcentaje): "))
+            fecha = input("Ingrese la fecha de la venta (YYYY-MM-DD): ")
+            total = float(input("Ingrese el total de la venta: "))
+            nueva_venta = Venta(len(ventas) + 1, descuento, fecha, total)
+            nueva_venta.articulo = articulo_venta
+            nueva_venta.cantidad = cantidad
+            ventas.append(nueva_venta)
+            print(f"Venta registrada con ID: {nueva_venta.id}")
+            print(f"Stock de '{articulo_venta.nombre}' actualizado a: {articulo_venta.stock}")
+        elif opcion == "2":
+            print("Calcular el total de la venta.")
+            if ventas:
+                id_venta = int(input("Ingrese el ID de la venta: "))
+                venta_encontrada = None
+                for venta in ventas:
+                    if venta.id == id_venta:
+                        venta_encontrada = venta
+                        break
+                if venta_encontrada:
+                    total_calculo = venta_encontrada.calcularTotal(venta_encontrada.total, venta_encontrada._descuento)
+                    articulo = getattr(venta_encontrada, 'articulo', None)
+                    cantidad = getattr(venta_encontrada, 'cantidad', 1)
+                    if articulo:
+                        print(f"Venta ID: {venta_encontrada.id}")
+                        print(f"Producto: {articulo.nombre}")
+                        print(f"Cantidad: {cantidad}")
+                        print(f"Total calculado (con descuento): ${total_calculo:.2f}")
+                    else:
+                        print(f"Total calculado: ${total_calculo:.2f}")
+                else:
+                    print("Venta no encontrada.")
+            else:
+                print("No hay ventas registradas.")
+        elif opcion == "3":
+            print("Modificar venta.")
+            if ventas:
+                id_venta = int(input("Ingrese el ID de la venta a modificar: "))
+                venta_encontrada = None
+                for venta in ventas:
+                    if venta.id == id_venta:
+                        venta_encontrada = venta
+                        break
+                if venta_encontrada:
+                    print(f"Venta actual - Descuento: {venta_encontrada._descuento}%, Fecha: {venta_encontrada.fecha}, Total: {venta_encontrada.total}")
+                    descuento = input("Nuevo descuento (en porcentaje) o Enter para no cambiar: ")
+                    fecha = input("Nueva fecha (YYYY-MM-DD) o Enter para no cambiar: ")
+                    total = input("Nuevo total o Enter para no cambiar: ")
+                    
+                    descuento = float(descuento) if descuento else None
+                    total = float(total) if total else None
+                    fecha = fecha if fecha else None
+                    
+                    if venta_encontrada.modificarVenta(descuento, fecha, total):
+                        print("Venta modificada correctamente.")
+                else:
+                    print("Venta no encontrada.")
+            else:
+                print("No hay ventas registradas.")
+        elif opcion == "4":
+            print("Eliminar venta.")
+            if ventas:
+                id_venta = int(input("Ingrese el ID de la venta a eliminar: "))
+                venta_encontrada = None
+                for i, venta in enumerate(ventas):
+                    if venta.id == id_venta:
+                        venta_encontrada = i
+                        break
+                if venta_encontrada is not None:
+                    venta_eliminada = ventas[venta_encontrada]
+                    # Restaurar stock del artículo si fue descontado
+                    articulo = getattr(venta_eliminada, 'articulo', None)
+                    cantidad = getattr(venta_eliminada, 'cantidad', 0)
+                    if articulo and cantidad > 0:
+                        articulo.stock += cantidad
+                        print(f"Stock de '{articulo.nombre}' restaurado a: {articulo.stock}")
+                    id_eliminada = venta_eliminada.eliminarVenta()
+                    ventas.pop(venta_encontrada)
+                    print(f"Venta con ID {id_eliminada} eliminada correctamente.")
+                else:
+                    print("Venta no encontrada.")
+            else:
+                print("No hay ventas registradas.")
+        elif opcion == "5":
+            break
+        else:
+            print("Opción no válida. Por favor, intente nuevamente.")
 
 def menu_inventario(inventario):
     while True:
@@ -74,7 +232,6 @@ def menu_inventario(inventario):
 
 def main():
     usuarios_registrados = []
-    inventario = []
     
     while True:
         print("\n=== SISTEMA DE ACCESO ===")
@@ -132,7 +289,7 @@ def main():
                 if u.iniciar_sesion(usuario, contrasena):
                     print(f"\n¡Bienvenido, {u.nombre}!")
                     autenticado = True
-                    menu_inventario(inventario)
+                    menu_general()
                     break
             
             if not autenticado:
